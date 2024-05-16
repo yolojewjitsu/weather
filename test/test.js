@@ -1,6 +1,6 @@
 const request = require('supertest');
 const express = require('express');
-const app = require('../index.js');
+const app = require('../api/index.js');
 
 describe('GET /api/weather', function() {
   it('responds with json', function(done) {
