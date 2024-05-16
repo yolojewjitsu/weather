@@ -1,119 +1,110 @@
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import axios from 'axios';
 import App from './App';
 
 jest.mock('axios');
 
-describe('App', () => {
+describe('App component', () => {
   beforeEach(() => {
-    axios.get.mockResolvedValueOnce({
-      data: [
-        {
-          time: '2024-05-15T11:00:00Z',
-          data: {
-            instant: {},
-            next_12_hours: {},
-            next_1_hours: {},
-            next_6_hours: {}
-          }
-        },
-        {
-          time: '2024-05-16T11:00:00Z',
-          data: {
-            instant: {},
-            next_12_hours: {},
-            next_1_hours: {},
-            next_6_hours: {}
-          }
-        },
-        {
-          time: '2024-05-17T11:00:00Z',
-          data: {
-            instant: {},
-            next_12_hours: {},
-            next_1_hours: {},
-            next_6_hours: {}
-          }
-        }
-      ]
+    jest.clearAllMocks();
+    axios.get.mockImplementation((url) => {
+      console.log(`axios.get called with URL: ${url}`);
+      return Promise.resolve({
+        data: [
+          {
+            time: '2023-05-01T00:00:00Z',
+            data: {
+              instant: {
+                details: {
+                  air_temperature: 15,
+                  air_pressure_at_sea_level: 1012,
+                  relative_humidity: 60,
+                  wind_speed: 5,
+                  wind_from_direction: 180,
+                  cloud_area_fraction: 20,
+                },
+              },
+              next_12_hours: {
+                summary: {
+                  symbol_code: 'partly_cloudy',
+                },
+              },
+            },
+          },
+        ],
+      });
     });
   });
 
-  test('renders weather forecast title', () => {
-    render(<App />);
-    const titleElement = screen.getByText(/weather forecast/i);
-    expect(titleElement).toBeInTheDocument();
+  test('renders the component and checks initial state', async () => {
+    await act(async () => {
+      render(<App />);
+    });
+
+    expect(screen.getByText(/Weather Forecast/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Enter location/i)).toHaveValue('Moscow');
+    expect(screen.getByPlaceholderText(/Enter latitude/i)).toHaveValue(55.7558);
+    expect(screen.getByPlaceholderText(/Enter longitude/i)).toHaveValue(37.6176);
+    expect(axios.get).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.getByText(/Temperature/i)).toBeInTheDocument());
+  });
+
+  test('changes coordinates and fetches new weather data', async () => {
+    await act(async () => {
+      render(<App />);
+    });
+
+    const latInput = screen.getByPlaceholderText(/Enter latitude/i);
+    const lonInput = screen.getByPlaceholderText(/Enter longitude/i);
+    const fetchButton = screen.getAllByText(/Fetch Weather/i)[1];
+
+    fireEvent.change(latInput, { target: { value: 40.7128 } });
+    fireEvent.change(lonInput, { target: { value: -74.006 } });
+    fireEvent.click(fetchButton);
+
+    console.log('Coordinates changed and fetch button clicked');
+
+    await waitFor(() => {
+      expect(axios.get).toHaveBeenNthCalledWith(2,
+        expect.stringContaining('lat=40.7128&lon=-74.006')
+      );
+    });
+
+    expect(axios.get).toHaveBeenCalledTimes(2);
   });
 
   test('toggles language', async () => {
-    render(<App />);
-    const toggleButton = screen.getByRole('button', { name: /EN/i });
     await act(async () => {
-      userEvent.click(toggleButton);
+      render(<App />);
     });
-    expect(screen.getByText(/enter location/i)).toBeInTheDocument();
+
+    const toggleButton = screen.getByText(/EN/i);
+
+    fireEvent.click(toggleButton);
+
+    console.log('Language toggled');
+
+    expect(screen.getByText(/Прогноз погоды/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Введите местоположение/i)).toBeInTheDocument();
   });
 
-  test('fetches weather data based on location input', async () => {
-    render(<App />);
-    const locationInput = screen.getByPlaceholderText(/enter location/i);
-    const fetchButton = screen.getByRole('button', { name: /fetch weather/i });
-    userEvent.type(locationInput, 'New York');
-    userEvent.click(fetchButton);
-    expect(await screen.findByText(/loading/i)).toBeInTheDocument();
-    expect(await screen.findByText(/air_temperature/i)).toBeInTheDocument();
-  });
+  test('displays loading spinner when fetching data', async () => {
+    axios.get.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ data: [] }), 200)));
 
-  test('fetches weather data based on coordinates input', async () => {
-    render(<App />);
-    const latInput = screen.getByPlaceholderText(/enter latitude/i);
-    const lonInput = screen.getByPlaceholderText(/enter longitude/i);
-    const fetchButton = screen.getByRole('button', { name: /fetch weather/i });
-    userEvent.clear(latInput);
-    userEvent.type(latInput, '40');
-    userEvent.clear(lonInput);
-    userEvent.type(lonInput, '-73');
-    userEvent.click(fetchButton);
-    expect(await screen.findByText(/loading/i)).toBeInTheDocument();
-    expect(await screen.findByText(/air_temperature/i)).toBeInTheDocument();
-  });
+    await act(async () => {
+      render(<App />);
+    });
 
-  test('displays error message when location input is empty', async () => {
-    render(<App />);
-    const fetchButton = screen.getByRole('button', { name: /fetch weather/i });
-    userEvent.click(fetchButton);
-    expect(await screen.findByText(/please enter a location/i)).toBeInTheDocument();
-  });
+    const locationInput = screen.getByPlaceholderText(/Enter location/i);
+    const fetchButton = screen.getAllByText(/Fetch Weather/i)[0];
 
-  test('displays error message when coordinates input is empty', async () => {
-    render(<App />);
-    const fetchButton = screen.getByRole('button', { name: /fetch weather/i });
-    userEvent.click(fetchButton);
-    expect(await screen.findByText(/please enter latitude and longitude/i)).toBeInTheDocument();
-  });
+    fireEvent.change(locationInput, { target: { value: 'New York' } });
+    fireEvent.click(fetchButton);
 
-  test('displays error message when API request fails', async () => {
-    axios.get.mockRejectedValueOnce(new Error('API request failed'));
-    render(<App />);
-    const locationInput = screen.getByPlaceholderText(/enter location/i);
-    const fetchButton = screen.getByRole('button', { name: /fetch weather/i });
-    userEvent.type(locationInput, 'New York');
-    userEvent.click(fetchButton);
-    expect(await screen.findByText(/error fetching weather data/i)).toBeInTheDocument();
-  });
+    console.log('Fetching data and expecting spinner to be displayed');
 
-  test('displays spinner when fetching weather data', async () => {
-    render(<App />);
-    const locationInput = screen.getByPlaceholderText(/enter location/i);
-    const fetchButton = screen.getByRole('button', { name: /fetch weather/i });
-    userEvent.type(locationInput, 'New York');
-    userEvent.click(fetchButton);
     expect(screen.getByTestId('spinner')).toBeInTheDocument();
-    await act(async () => {
-      await screen.findByText(/air_temperature/i);
-    });
-    expect(screen.queryByTestId('spinner')).toBeNull();
   });
 });

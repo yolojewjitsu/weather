@@ -10,4 +10,12 @@ describe('GET /api/weather', function() {
       .expect('Content-Type', /json/)
       .expect(200, done);
   });
+
+  it('responds with json for New York coordinates', function(done) {
+    request(app)
+      .get('/api/weather?lat=40.7128&lon=-74.006')
+      .set('Accept', 'application/json')
+      .expect('Content-Type', /json/)
+      .expect(200, done);
+  });
 });
