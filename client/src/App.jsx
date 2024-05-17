@@ -26,8 +26,8 @@ function App() {
   const handleLocationChange = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`https://api.opencagedata.com/geocode/v1/json?q=${location}&key=b2de9d791e7046b78b597eb4737cd6e3`);
-      const { lat, lng } = response.data.results[0].geometry;
+      const response = await axios.get(`https://weather-n7nk.onrender.com/api/coordinates?location=${location}`);
+      const { lat, lng } = response.data;
       setLat(lat);
       setLon(lng);
       await fetchWeather(lat, lng);
@@ -51,7 +51,7 @@ function App() {
   };
 
   const openDocumentation = () => {
-    window.open('/api-docs', '_blank');
+    window.open('https://weather-n7nk.onrender.com/api-docs', '_blank');
   };
 
   return (
