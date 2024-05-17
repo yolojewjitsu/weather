@@ -15,7 +15,7 @@ function App() {
   const fetchWeather = async (latitude, longitude) => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:3000/api/weather?lat=${latitude}&lon=${longitude}`);
+      const response = await axios.get(`https://weather-n7nk.onrender.com/api/weather?lat=${latitude}&lon=${longitude}`);
       setWeatherData(response.data);
     } catch (error) {
       setWeatherData([]);
